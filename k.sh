@@ -12,13 +12,14 @@ k () {
 
   # Process options and get files/directories
   typeset -a o_all o_almost_all o_human o_si o_directory o_group_directories \
-	  o_no_directory o_no_vcs o_sort o_sort_reverse o_help
+	  o_no_directory o_no_vcs o_sort o_sort_reverse o_help o_classify
   zparseopts -E -D \
              a=o_all -all=o_all \
              A=o_almost_all -almost-all=o_almost_all \
              c=o_sort \
              d=o_directory -directory=o_directory \
 	     -group-directories-first=o_group_directories \
+             F=o_classify -classify=o_classify \
              h=o_human -human=o_human \
              -si=o_si \
              n=o_no_directory -no-directory=o_no_directory \
@@ -41,6 +42,7 @@ k () {
     print -u2 "\t-c                      sort by ctime (inode change time)"
     print -u2 "\t-d      --directory     list only directories"
     print -u2 "\t-n      --no-directory  do not list directories"
+    print -u2 "\t-F      --classify      append indicator (one of */=@|) to entries"
     print -u2 "\t-h      --human         show filesizes in human-readable format"
     print -u2 "\t        --si            with -h, use powers of 1000 not 1024"
     print -u2 "\t-r      --reverse       reverse sort order"
@@ -511,7 +513,7 @@ k () {
       fi
 
       # --------------------------------------------------------------------------
-      # Colour the filename
+      # Colour and classify the filename
       # --------------------------------------------------------------------------
       # Unfortunately, the choices for quoting which escape ANSI color sequences are q & qqqq; none of q- qq qqq work.
       # But we don't want to quote '.'; so instead we escape the escape manually and use q-
@@ -520,7 +522,11 @@ k () {
       if [[ "$LS_COLORS" ]] && ls --color -d . &>/dev/null; then
         # We are using an ls that supports using colors from $LS_COLORS (probably GNU ls here)
         pushd "${base_dir}" &>/dev/null
-        NAME="$(ls --color=always -d "$NAME")"
+        if [[ "$o_classify" != "" ]]; then 
+          NAME="$(command ls -F --color=always -d "$NAME")"; 
+        else
+          NAME="$(command ls --color=always -d "$NAME")"
+        fi
         popd &>/dev/null
       elif [[ $IS_DIRECTORY == 1 ]]; then
         if [[ $IS_WRITABLE_BY_OTHERS == 1 ]]; then
@@ -530,12 +536,17 @@ k () {
           NAME=$'\e['"$K_COLOR_OW"'m'"$NAME"$'\e[0m';
         fi
         NAME=$'\e['"$K_COLOR_DI"'m'"$NAME"$'\e[0m';
+        if [[ "$o_classify" != "" ]]; then NAME="$NAME/"; fi
       elif [[ $IS_SYMLINK           == 1 ]]; then NAME=$'\e['"$K_COLOR_LN"'m'"$NAME"$'\e[0m';
+        if [[ "$o_classify" != "" ]]; then NAME="$NAME@"; fi
       elif [[ $IS_SOCKET            == 1 ]]; then NAME=$'\e['"$K_COLOR_SO"'m'"$NAME"$'\e[0m';
+        if [[ "$o_classify" != "" ]]; then NAME="$NAME="; fi
       elif [[ $IS_PIPE              == 1 ]]; then NAME=$'\e['"$K_COLOR_PI"'m'"$NAME"$'\e[0m';
+        if [[ "$o_classify" != "" ]]; then NAME="$NAME|"; fi
       elif [[ $HAS_UID_BIT          == 1 ]]; then NAME=$'\e['"$K_COLOR_SU"'m'"$NAME"$'\e[0m';
       elif [[ $HAS_GID_BIT          == 1 ]]; then NAME=$'\e['"$K_COLOR_SG"'m'"$NAME"$'\e[0m';
       elif [[ $IS_EXECUTABLE        == 1 ]]; then NAME=$'\e['"$K_COLOR_EX"'m'"$NAME"$'\e[0m';
+        if [[ "$o_classify" != "" ]]; then NAME="$NAME*"; fi
       elif [[ $IS_BLOCK_SPECIAL     == 1 ]]; then NAME=$'\e['"$K_COLOR_BD"'m'"$NAME"$'\e[0m';
       elif [[ $IS_CHARACTER_SPECIAL == 1 ]]; then NAME=$'\e['"$K_COLOR_CD"'m'"$NAME"$'\e[0m';
       fi
