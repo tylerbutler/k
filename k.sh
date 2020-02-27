@@ -173,7 +173,7 @@ function k () {
   if [[ ( $(uname) == 'Linux'* || $(uname) == 'CYGWIN'* ) && -n $LS_COLORS ]]; then
     local -A lscolors=(${(@s,=,)${(@s,:,)LS_COLORS}})
     K_COLOR_DI=$( [ -n "$lscolors[di]" ] && echo "$lscolors[di]" || echo $K_COLOR_DI)
-    K_COLOR_LN=$( [ -n "$lscolors[ln]" ] && echo "$lscolors[ln]" || echo $K_COLOR_LN)
+    #K_COLOR_LN=$( [ -n "$lscolors[ln]" ] && echo "$lscolors[ln]" || echo $K_COLOR_LN)
     K_COLOR_SO=$( [ -n "$lscolors[so]" ] && echo "$lscolors[so]" || echo $K_COLOR_SO)
     K_COLOR_PI=$( [ -n "$lscolors[pi]" ] && echo "$lscolors[pi]" || echo $K_COLOR_PI)
     K_COLOR_EX=$( [ -n "$lscolors[ex]" ] && echo "$lscolors[ex]" || echo $K_COLOR_EX)
@@ -377,16 +377,6 @@ function k () {
 
       # Check for file types
       if [[ -d "$NAME" ]]; then IS_DIRECTORY=1; fi
-      if [[ -L "$NAME" ]]; then IS_SYMLINK=1; fi
-      if [[ -S "$NAME" ]]; then IS_SOCKET=1; fi
-      if [[ -p "$NAME" ]]; then IS_PIPE=1; fi
-      if [[ -x "$NAME" ]]; then IS_EXECUTABLE=1; fi
-      if [[ -b "$NAME" ]]; then IS_BLOCK_SPECIAL=1; fi
-      if [[ -c "$NAME" ]]; then IS_CHARACTER_SPECIAL=1; fi
-      if [[ -u "$NAME" ]]; then HAS_UID_BIT=1; fi
-      if [[ -g "$NAME" ]]; then HAS_GID_BIT=1; fi
-      if [[ -k "$NAME" ]]; then HAS_STICKY_BIT=1; fi
-      if [[ $PERMISSIONS[9] == 'w' ]]; then IS_WRITABLE_BY_OTHERS=1; fi
 
       # IS_GIT_REPO is a 1 if $NAME is a file/directory in a git repo, OR if $NAME is a git-repo itself
       # GIT_TOPLEVEL is set to the directory containing the .git folder of a git-repo
@@ -532,10 +522,43 @@ function k () {
       # --------------------------------------------------------------------------
       # Unfortunately, the choices for quoting which escape ANSI color sequences are q & qqqq; none of q- qq qqq work.
       # But we don't want to quote '.'; so instead we escape the escape manually and use q-
-      NAME="${${NAME##*/}//$'\e'/\\e}"    # also propagate changes to SYMLINK_TARGET below
+      NAME=$(_k_colour_file "${${NAME##*/}//$'\e'/\\e}")    # also propagate changes to SYMLINK_TARGET below
+
+      # --------------------------------------------------------------------------
+      # Colour branch
+      # --------------------------------------------------------------------------
+      REPOBRANCH=$'\e['"$K_COLOR_BR"'m'"$REPOBRANCH"$'\e[0m';
+
+      # --------------------------------------------------------------------------
+      # Format symlink target
+      # --------------------------------------------------------------------------
+      if [[ $SYMLINK_TARGET != "" ]]; then SYMLINK_TARGET=" -> $(_k_colour_file ${SYMLINK_TARGET//$'\e'/\\e})"; fi
+
+      # --------------------------------------------------------------------------
+      # Display final result
+      # --------------------------------------------------------------------------
+      print -r -- "$PERMISSIONS_OUTPUT $HARDLINKCOUNT $OWNER $GROUP $FILESIZE_OUT $DATE_OUTPUT $REPOMARKER $NAME$SYMLINK_TARGET $REPOBRANCH"
+
+      k=$((k+1)) # Bump loop index
+    done
+  done
+}
+
+_k_colour_file() {
+      local NAME="$1"
+
+      if [[ -L "$NAME" ]]; then IS_SYMLINK=1; fi
+      if [[ -S "$NAME" ]]; then IS_SOCKET=1; fi
+      if [[ -p "$NAME" ]]; then IS_PIPE=1; fi
+      if [[ -x "$NAME" ]]; then IS_EXECUTABLE=1; fi
+      if [[ -b "$NAME" ]]; then IS_BLOCK_SPECIAL=1; fi
+      if [[ -c "$NAME" ]]; then IS_CHARACTER_SPECIAL=1; fi
+      if [[ -u "$NAME" ]]; then HAS_UID_BIT=1; fi
+      if [[ -g "$NAME" ]]; then HAS_GID_BIT=1; fi
+      if [[ -k "$NAME" ]]; then HAS_STICKY_BIT=1; fi
+      if [[ $PERMISSIONS[9] == 'w' ]]; then IS_WRITABLE_BY_OTHERS=1; fi
 
       if [[ $IS_DIRECTORY == 1 ]]; then
-      #if [[ $IS_DIRECTORY == 1 ]]; then
         if [[ $IS_WRITABLE_BY_OTHERS == 1 ]]; then
           if [[ $HAS_STICKY_BIT == 1 ]]; then
             NAME=$'\e['"$K_COLOR_TW"'m'"$NAME"$'\e[0m';
@@ -562,25 +585,7 @@ function k () {
         NAME="$(command ls --color=always -d "$NAME")" 
         popd &>/dev/null
       fi
-
-      # --------------------------------------------------------------------------
-      # Colour branch
-      # --------------------------------------------------------------------------
-      REPOBRANCH=$'\e['"$K_COLOR_BR"'m'"$REPOBRANCH"$'\e[0m';
-
-      # --------------------------------------------------------------------------
-      # Format symlink target
-      # --------------------------------------------------------------------------
-      if [[ $SYMLINK_TARGET != "" ]]; then SYMLINK_TARGET=" -> ${SYMLINK_TARGET//$'\e'/\\e}"; fi
-
-      # --------------------------------------------------------------------------
-      # Display final result
-      # --------------------------------------------------------------------------
-      print -r -- "$PERMISSIONS_OUTPUT $HARDLINKCOUNT $OWNER $GROUP $FILESIZE_OUT $DATE_OUTPUT $REPOMARKER $NAME$SYMLINK_TARGET $REPOBRANCH"
-
-      k=$((k+1)) # Bump loop index
-    done
-  done
+      echo $NAME
 }
 
 _k_bsd_to_ansi() {
