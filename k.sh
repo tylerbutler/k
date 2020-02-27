@@ -1,7 +1,7 @@
 zmodload zsh/datetime
 zmodload -F zsh/stat b:zstat
 
-k () {
+function k () {
   # ----------------------------------------------------------------------------
   # Setup
   # ----------------------------------------------------------------------------
@@ -168,6 +168,21 @@ k () {
     K_COLOR_SG=$(_k_bsd_to_ansi $LSCOLORS[17] $LSCOLORS[18])
     K_COLOR_TW=$(_k_bsd_to_ansi $LSCOLORS[19] $LSCOLORS[20])
     K_COLOR_OW=$(_k_bsd_to_ansi $LSCOLORS[21] $LSCOLORS[22])
+  fi
+
+  if [[ ( $(uname) == 'Linux'* || $(uname) == 'CYGWIN'* ) && -n $LS_COLORS ]]; then
+    local -A lscolors=(${(@s,=,)${(@s,:,)LS_COLORS}})
+    K_COLOR_DI=$( [ -n "$lscolors[di]" ] && echo "$lscolors[di]" || echo $K_COLOR_DI)
+    K_COLOR_LN=$( [ -n "$lscolors[ln]" ] && echo "$lscolors[ln]" || echo $K_COLOR_LN)
+    K_COLOR_SO=$( [ -n "$lscolors[so]" ] && echo "$lscolors[so]" || echo $K_COLOR_SO)
+    K_COLOR_PI=$( [ -n "$lscolors[pi]" ] && echo "$lscolors[pi]" || echo $K_COLOR_PI)
+    K_COLOR_EX=$( [ -n "$lscolors[ex]" ] && echo "$lscolors[ex]" || echo $K_COLOR_EX)
+    K_COLOR_BD=$( [ -n "$lscolors[bd]" ] && echo "$lscolors[bd]" || echo $K_COLOR_BD)
+    K_COLOR_CD=$( [ -n "$lscolors[cd]" ] && echo "$lscolors[cd]" || echo $K_COLOR_CD)
+    K_COLOR_SU=$( [ -n "$lscolors[su]" ] && echo "$lscolors[su]" || echo $K_COLOR_SU)
+    K_COLOR_SG=$( [ -n "$lscolors[sg]" ] && echo "$lscolors[sg]" || echo $K_COLOR_SG)
+    K_COLOR_TW=$( [ -n "$lscolors[tw]" ] && echo "$lscolors[tw]" || echo $K_COLOR_TW)
+    K_COLOR_OW=$( [ -n "$lscolors[ow]" ] && echo "$lscolors[ow]" || echo $K_COLOR_OW)
   fi
 
   # ----------------------------------------------------------------------------
@@ -519,16 +534,8 @@ k () {
       # But we don't want to quote '.'; so instead we escape the escape manually and use q-
       NAME="${${NAME##*/}//$'\e'/\\e}"    # also propagate changes to SYMLINK_TARGET below
 
-      if [[ "$LS_COLORS" ]] && ls --color -d . &>/dev/null; then
-        # We are using an ls that supports using colors from $LS_COLORS (probably GNU ls here)
-        pushd "${base_dir}" &>/dev/null
-        if [[ "$o_classify" != "" ]]; then 
-          NAME="$(command ls -F --color=always -d "$NAME")"; 
-        else
-          NAME="$(command ls --color=always -d "$NAME")"
-        fi
-        popd &>/dev/null
-      elif [[ $IS_DIRECTORY == 1 ]]; then
+      if [[ $IS_DIRECTORY == 1 ]]; then
+      #if [[ $IS_DIRECTORY == 1 ]]; then
         if [[ $IS_WRITABLE_BY_OTHERS == 1 ]]; then
           if [[ $HAS_STICKY_BIT == 1 ]]; then
             NAME=$'\e['"$K_COLOR_TW"'m'"$NAME"$'\e[0m';
@@ -549,6 +556,11 @@ k () {
         if [[ "$o_classify" != "" ]]; then NAME="$NAME*"; fi
       elif [[ $IS_BLOCK_SPECIAL     == 1 ]]; then NAME=$'\e['"$K_COLOR_BD"'m'"$NAME"$'\e[0m';
       elif [[ $IS_CHARACTER_SPECIAL == 1 ]]; then NAME=$'\e['"$K_COLOR_CD"'m'"$NAME"$'\e[0m';
+      elif [[ "$LS_COLORS" ]] && command ls --color -d . &>/dev/null; then
+        # Handle LS_COLORS support for all other files
+        pushd "${base_dir}" &>/dev/null
+        NAME="$(command ls --color=always -d "$NAME")" 
+        popd &>/dev/null
       fi
 
       # --------------------------------------------------------------------------
